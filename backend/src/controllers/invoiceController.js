@@ -22,7 +22,8 @@ const createInvoice = async (req, res) => {
         const invoice = await prisma.invoice.create({
             data: {
                 orderId,
-                amount: order.totalAmount,
+                // Invoice the amount accepted at confirmation, never a later changed total.
+                amount: order.lockedTotalAmount || order.totalAmount,
                 status: 'UNPAID',
                 method: method || 'BANK_TRANSFER'
             }

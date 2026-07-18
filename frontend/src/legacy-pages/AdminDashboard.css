@@ -3,26 +3,20 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
 :root {
-  --primary: #8b5cf6;
-  /* Violet */
-  --primary-hover: #7c3aed;
-  --secondary: #ec4899;
-  /* Pink */
-  --background: #0f172a;
-  /* Slate 900 */
-  --surface: #1e293b;
-  /* Slate 800 */
-  --surface-hover: #334155;
-  --surface-light: #252b4a;
-  /* Legacy var support */
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: #334155;
+  --primary: #dc2626;
+  --primary-hover: #b91c1c;
+  --secondary: #ef4444;
+  --background: #030712;
+  --surface: #0b0f19;
+  --surface-hover: #111827;
+  --surface-light: #1f2937;
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --border: rgba(255, 255, 255, 0.08);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
-  --accent: #00d9ff;
-  /* Legacy var support */
+  --accent: #dc2626;
 }
 
 /* Page Container - Full Width & Height, Dark Background */

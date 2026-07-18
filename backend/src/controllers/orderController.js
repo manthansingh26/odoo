@@ -1,5 +1,34 @@
 const { PrismaClient } = require('@prisma/client');
+const sendEmail = require('../utils/sendEmail');
 const prisma = new PrismaClient();
+
+const formatInvoiceEmail = ({ order, invoice }) => {
+    const amount = Number(invoice.amount).toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    const items = order.items.map((item) => (
+        `<li>${item.product?.name || 'Rental item'} × ${item.quantity}</li>`
+    )).join('');
+
+    return {
+        subject: `Payment receipt for order ${order.orderNumber}`,
+        message: `Your payment of Rs ${amount} for order ${order.orderNumber} was received. Your invoice is paid.`,
+        html: `
+            <div style="font-family:Arial,sans-serif;color:#1f2937;max-width:600px;margin:auto">
+                <h2 style="color:#0f766e">Payment received</h2>
+                <p>Hello ${order.user.name},</p>
+                <p>We received your payment for rental order <strong>${order.orderNumber}</strong>.</p>
+                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px">
+                    <p style="margin:0 0 8px"><strong>Invoice status:</strong> Paid</p>
+                    <p style="margin:0"><strong>Amount paid:</strong> Rs ${amount}</p>
+                </div>
+                <p><strong>Items</strong></p><ul>${items}</ul>
+                <p>Your agreed rental price is locked. Please keep this email as your payment receipt.</p>
+                <p>Thank you,<br>RentFlow</p>
+            </div>`
+    };
+};
 
 const createOrder = async (req, res) => {
     try {
@@ -212,6 +241,7 @@ const confirmOrder = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.userId;
+        const { renterProtectionAccepted } = req.body;
 
         // 1. Get the order with items
         const order = await prisma.order.findUnique({
@@ -221,9 +251,22 @@ const confirmOrder = async (req, res) => {
 
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+        if (order.userId !== userId && req.user.role !== 'VENDOR' && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ success: false, message: 'Not authorized to confirm this order' });
+        }
+
         // Only allow confirming Quotations
         if (order.status !== 'QUOTATION' && order.status !== 'QUOTATION_SENT') {
             return res.status(400).json({ success: false, message: 'Only quotations can be confirmed' });
+        }
+
+        // A customer must acknowledge the protection terms before a rental is committed.
+        // Existing staff workflows are not blocked by this customer-facing acknowledgement.
+        if (req.user.role === 'CUSTOMER' && !renterProtectionAccepted) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please accept the rental protection terms before confirming.'
+            });
         }
 
         // 2. Validate Stock for each item
@@ -259,7 +302,13 @@ const confirmOrder = async (req, res) => {
         // 3. Update Status
         const updatedOrder = await prisma.order.update({
             where: { id },
-            data: { status: 'SALES_ORDER' }
+            data: {
+                status: 'SALES_ORDER',
+                // Freeze the agreed quotation total. Later invoices cannot add charges.
+                lockedTotalAmount: order.totalAmount,
+                priceLockedAt: new Date(),
+                renterAcceptedAt: req.user.role === 'CUSTOMER' ? new Date() : null
+            }
         });
 
         res.status(200).json({ success: true, message: 'Order confirmed successfully', data: updatedOrder });
@@ -280,7 +329,7 @@ const payOrder = async (req, res) => {
 
         const order = await prisma.order.findUnique({
             where: { id },
-            include: { invoice: true }
+            include: { invoice: true, user: { select: { name: true, email: true } }, items: { include: { product: true } } }
         });
 
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
@@ -320,11 +369,29 @@ const payOrder = async (req, res) => {
             return { order: updatedOrder, invoice: updatedInvoice };
         });
 
+        // Payment is never rolled back because an email provider is temporarily unavailable.
+        // The receipt is sent only after both the order and invoice are marked paid.
+        let receiptEmailSent = false;
+        try {
+            const email = formatInvoiceEmail({ order, invoice: result.invoice });
+            await sendEmail({ email: order.user.email, ...email });
+            await prisma.invoice.update({
+                where: { id: result.invoice.id },
+                data: { receiptSentAt: new Date() }
+            });
+            receiptEmailSent = true;
+        } catch (emailError) {
+            console.error(`Invoice receipt email failed for order ${order.orderNumber}:`, emailError.message);
+        }
+
         res.status(200).json({
             success: true,
-            message: 'Payment successful. Invoice settled.',
+            message: receiptEmailSent
+                ? 'Payment successful. Invoice settled and receipt emailed.'
+                : 'Payment successful. Invoice settled. The receipt email could not be sent.',
             data: result.order,
-            invoiceId: result.invoice.id
+            invoiceId: result.invoice.id,
+            receiptEmailSent
         });
     } catch (error) {
         console.error('Payment Error:', error);

@@ -19,6 +19,7 @@ const CustomerOrderDetail = () => {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [renterProtectionAccepted, setRenterProtectionAccepted] = useState(false);
 
     const displayName = user?.name || 'User';
     const email = user?.email || 'user@example.com';
@@ -51,10 +52,14 @@ const CustomerOrderDetail = () => {
     };
 
     const handleConfirmOrder = async () => {
-        if (!window.confirm('Confirm this order? This will reserve the items.')) return;
+        if (!renterProtectionAccepted) {
+            alert('Please accept the rental protection terms before confirming.');
+            return;
+        }
+        if (!window.confirm('Confirm this order? The rental price shown will be locked and the items reserved.')) return;
 
         try {
-            const response = await api.post(`/orders/${id}/confirm`);
+            const response = await api.post(`/orders/${id}/confirm`, { renterProtectionAccepted: true });
             if (response.data.success) {
                 alert('Order confirmed successfully!');
                 fetchOrderDetail();
@@ -278,6 +283,28 @@ const CustomerOrderDetail = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Renter protection */}
+                    <div className="renter-protection-card">
+                        <div className="renter-protection-title">Rental protection</div>
+                        <p>The total shown for this order is locked when you confirm. The owner cannot add or increase charges directly after confirmation.</p>
+                        <ul>
+                            <li>Check the item condition with the owner at handover and keep photos if needed.</li>
+                            <li>Any damage or extra charge must be explained and agreed through the platform before payment.</li>
+                            <li>If the item condition is not as described, do not accept it—contact support first.</li>
+                        </ul>
+                        {order.status === 'QUOTATION_SENT' && (
+                            <label className="renter-protection-check">
+                                <input
+                                    type="checkbox"
+                                    checked={renterProtectionAccepted}
+                                    onChange={(event) => setRenterProtectionAccepted(event.target.checked)}
+                                />
+                                <span>I understand and agree to these rental protection terms.</span>
+                            </label>
+                        )}
+                        {order.priceLockedAt && <div className="price-locked-label">Price locked on {formatDate(order.priceLockedAt)}: {formatCurrency(Number(order.lockedTotalAmount || order.totalAmount))}</div>}
+                    </div>
 
                     {/* Order Items */}
                     <div className="items-card" style={{

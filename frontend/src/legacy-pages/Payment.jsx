@@ -67,7 +67,7 @@ const Payment = () => {
                 const response = await api.post(`/orders/${orderId}/pay`);
 
                 if (response.data.success) {
-                    alert('Payment successful!');
+                    alert(response.data.message || 'Payment successful! Your invoice receipt has been emailed.');
                     navigate(`/customer/orders/${orderId}`);
                 } else {
                     alert('Payment failed: ' + response.data.message);

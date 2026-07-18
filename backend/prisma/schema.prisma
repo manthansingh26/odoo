@@ -151,6 +151,10 @@ model Order {
   shippingCost  Decimal     @default(0) @db.Decimal(10, 2)
   note          String?
   lateFee       Decimal     @default(0) @db.Decimal(10, 2)
+  // Set when the renter confirms the quotation. Invoices must use this amount.
+  lockedTotalAmount Decimal? @db.Decimal(10, 2)
+  priceLockedAt     DateTime?
+  renterAcceptedAt  DateTime?
 }
 
 model OrderItem {
@@ -173,6 +177,7 @@ model Invoice {
   status      String   @default("UNPAID") // UNPAID, PAID, VOID
   paymentDate DateTime?
   method      String?
+  receiptSentAt DateTime?
   createdAt   DateTime @default(now())
 }
 

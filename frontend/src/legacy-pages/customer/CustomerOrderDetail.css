@@ -72,6 +72,28 @@
     margin-bottom: 1.5rem;
 }
 
+.renter-protection-card {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--text);
+}
+
+.renter-protection-title {
+    color: #34d399;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.renter-protection-card p,
+.renter-protection-card li { color: var(--text-muted); }
+.renter-protection-card ul { margin: 0.75rem 0 1rem; padding-left: 1.25rem; }
+.renter-protection-check { display: flex; gap: 0.65rem; align-items: flex-start; cursor: pointer; font-weight: 600; }
+.renter-protection-check input { margin-top: 0.2rem; accent-color: #10b981; }
+.price-locked-label { color: #34d399; font-weight: 700; }
+
 .order-info-card h3,
 .rental-period-card h3,
 .items-card h3,
